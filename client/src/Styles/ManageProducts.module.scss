@@ -1,0 +1,60 @@
+.pagination {
+    display: flex;
+    justify-content: center;
+    button {
+        margin: 0 5px;
+    }
+}
+
+.title {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    h2 {
+        font-size: 23px;
+        margin: 0;
+    }
+}
+
+.actions {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+
+.search-filter {
+    display: flex;
+    gap: 10px;
+    
+    input, select {
+        min-width: 200px;
+        height: 38px;
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    .title {
+        flex-direction: column;
+        gap: 15px;
+        h2 {
+            font-size: 18px;
+        }
+    }
+    
+    .actions {
+        width: 100%;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .search-filter {
+        width: 100%;
+        flex-direction: column;
+        
+        input, select {
+            width: 100%;
+            min-width: 100%;
+        }
+    }
+}
