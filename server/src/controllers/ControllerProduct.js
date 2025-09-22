@@ -1,6 +1,7 @@
 const ModelProducts = require('../models/ModelProducts');
 const modelProducts = require('../models/ModelProducts');
 const ModelPayment = require('../models/ModelPayment');
+const ModelCategory = require('../models/ModelCategory');
 var slugify = require('slugify');
 var fs = require('fs/promises');
 const path = require('path');
@@ -8,27 +9,54 @@ const path = require('path');
 const mongoose = require('mongoose');
 
 class controllerProducts {
-    AddProducts(req, res, next) {
-        const { nameProduct, priceProduct, description, checkType } = req.body;
-        const imgUrls = req.files.map((file) => file.filename);
-        const slug = slugify(nameProduct, '-', {
-            replacement: '-',
-            remove: undefined,
-            lower: false,
-            strict: false,
-            locale: 'vi',
-            trim: true,
-        });
-        const newProducts = new modelProducts({
-            name: nameProduct,
-            price: priceProduct,
-            description: description,
-            slug,
-            img: imgUrls,
-            type: checkType,
-        });
-        newProducts.save();
-        res.status(200).json({ message: 'Thêm sản phẩm thành công' });
+    async AddProducts(req, res, next) {
+        try {
+            const { nameProduct, priceProduct, description, checkType, categoryId } = req.body;
+            const imgUrls = req.files.map((file) => file.filename);
+            const slug = slugify(nameProduct, '-', {
+                replacement: '-',
+                remove: undefined,
+                lower: false,
+                strict: false,
+                locale: 'vi',
+                trim: true,
+            });
+
+            // Tìm hoặc tạo category mặc định
+            let category;
+            if (categoryId) {
+                category = await ModelCategory.findById(categoryId);
+            }
+
+            if (!category) {
+                // Tạo category mặc định nếu không có
+                category = await ModelCategory.findOne({ name: 'Mặc định' });
+                if (!category) {
+                    category = new ModelCategory({
+                        name: 'Mặc định',
+                        slug: 'mac-dinh',
+                        description: 'Danh mục mặc định',
+                    });
+                    await category.save();
+                }
+            }
+
+            const newProducts = new modelProducts({
+                name: nameProduct,
+                price: priceProduct,
+                description: description,
+                slug,
+                img: imgUrls,
+                type: checkType,
+                category: category._id,
+            });
+
+            await newProducts.save();
+            res.status(200).json({ message: 'Thêm sản phẩm thành công' });
+        } catch (error) {
+            console.error('Lỗi khi thêm sản phẩm:', error);
+            res.status(500).json({ message: 'Lỗi khi thêm sản phẩm', error: error.message });
+        }
     }
     GetProducts(req, res, next) {
         modelProducts.find({}).then((dataProduct) => {
