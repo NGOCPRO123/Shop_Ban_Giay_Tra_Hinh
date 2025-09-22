@@ -3,12 +3,7 @@ import styles from '../Styles/Payments.module.scss';
 import Header from '../Components/Header';
 import Footer from '../Components/Footer';
 import axios from 'axios';
-import request, { 
-    requestPaymentVNPAY, 
-    requestUpdateInfoCart, 
-    requestSendOTP, 
-    requestVerifyOTP 
-} from '../Config/api';
+import request, { requestPaymentVNPAY, requestUpdateInfoCart, requestSendOTP, requestVerifyOTP } from '../Config/api';
 import OTPModal from '../Components/OTPModal';
 
 import { ToastContainer, toast } from 'react-toastify';
@@ -37,7 +32,7 @@ function Payments() {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [email, setEmail] = useState('');
-    
+
     // State cho OTP Modal
     const [showOTPModal, setShowOTPModal] = useState(false);
     const [isOtpVerifying, setIsOtpVerifying] = useState(false);
@@ -65,7 +60,7 @@ function Payments() {
         const debounceTimeout = setTimeout(() => {
             fetchData();
         }, 500);
-        
+
         return () => clearTimeout(debounceTimeout);
     }, [name, phone, address]);
 
@@ -101,16 +96,11 @@ function Payments() {
 
     useEffect(() => {
         // Combine address components when any part changes
-        const fullAddress = [
-            specificAddress,
-            selectedXa,
-            selectedHuyen,
-            selectedTinhThanh
-        ].filter(Boolean).join(', ');
-        
+        const fullAddress = [specificAddress, selectedXa, selectedHuyen, selectedTinhThanh].filter(Boolean).join(', ');
+
         if (fullAddress) {
             setAddress(fullAddress);
-            console.log("Full address:", fullAddress); // For debugging
+            console.log('Full address:', fullAddress); // For debugging
         }
     }, [specificAddress, selectedXa, selectedHuyen, selectedTinhThanh]);
 
@@ -168,17 +158,18 @@ function Payments() {
             setIsOtpVerifying(true);
             const paymentData = {
                 otp,
+                email, // Thêm email vào request để đảm bảo tính nhất quán
                 name,
                 phone,
                 address,
                 paymentMethod,
                 products: dataProducts,
-                totalAmount: totalProduct
+                totalAmount: totalProduct,
             };
             const response = await requestVerifyOTP(paymentData);
             toast.success(response.message);
             setShowOTPModal(false);
-            
+
             // Chuyển hướng đến trang thành công sau khi xác thực OTP
             await getCart();
             navigate('/paymentsuccess');
@@ -197,12 +188,12 @@ function Payments() {
 
         try {
             if (paymentMethod === 'Momo') {
-                const res = await request.post('/api/payment/momo', { 
-                    dataProducts, 
+                const res = await request.post('/api/payment/momo', {
+                    dataProducts,
                     address,
                     name,
                     phone,
-                    email
+                    email,
                 });
                 if (res.data.payUrl) {
                     window.location.href = res.data.payUrl;
@@ -271,9 +262,9 @@ function Payments() {
 
                         <div>
                             <div className="form-floating mb-3">
-                                <input 
-                                    type="email" 
-                                    className="form-control" 
+                                <input
+                                    type="email"
+                                    className="form-control"
                                     id="floatingEmail"
                                     onChange={(e) => setEmail(e.target.value)}
                                 />
@@ -285,10 +276,10 @@ function Payments() {
                                 onChange={(e) => {
                                     const value = e.target.value;
                                     setIdTinhThanh(value);
-                                    if (value !== "0") {
-                                        const selected = tinhthanh.find(item => item.id.toString() === value);
+                                    if (value !== '0') {
+                                        const selected = tinhthanh.find((item) => item.id.toString() === value);
                                         setSelectedTinhThanh(selected ? selected.name : '');
-                                        console.log("Selected tinh/thanh:", selected?.name); // For debugging
+                                        console.log('Selected tinh/thanh:', selected?.name); // For debugging
                                     } else {
                                         setSelectedTinhThanh('');
                                     }
@@ -308,10 +299,10 @@ function Payments() {
                                 onChange={(e) => {
                                     const value = e.target.value;
                                     setIdHuyen(value);
-                                    if (value !== "0") {
-                                        const selected = huyen.find(item => item.id.toString() === value);
+                                    if (value !== '0') {
+                                        const selected = huyen.find((item) => item.id.toString() === value);
                                         setSelectedHuyen(selected ? selected.name : '');
-                                        console.log("Selected huyen:", selected?.name); // For debugging
+                                        console.log('Selected huyen:', selected?.name); // For debugging
                                     } else {
                                         setSelectedHuyen('');
                                     }
@@ -327,15 +318,15 @@ function Payments() {
                                 ))}
                             </select>
 
-                            <select 
-                                className="form-select mt-3" 
+                            <select
+                                className="form-select mt-3"
                                 aria-label="Default select example"
                                 onChange={(e) => {
                                     const value = e.target.value;
-                                    if (value !== "0") {
-                                        const selected = xa.find(item => item.id.toString() === value);
+                                    if (value !== '0') {
+                                        const selected = xa.find((item) => item.id.toString() === value);
                                         setSelectedXa(selected ? selected.name : '');
-                                        console.log("Selected xa:", selected?.name); // For debugging
+                                        console.log('Selected xa:', selected?.name); // For debugging
                                     } else {
                                         setSelectedXa('');
                                     }
@@ -456,7 +447,7 @@ function Payments() {
             </footer>
 
             {/* Modal xác thực OTP */}
-            <OTPModal 
+            <OTPModal
                 show={showOTPModal}
                 onHide={() => setShowOTPModal(false)}
                 onVerify={handleVerifyOTP}

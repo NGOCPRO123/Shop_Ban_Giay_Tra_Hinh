@@ -24,7 +24,7 @@ class ControllerPayments {
     async sendPaymentOTP(req, res) {
         try {
             console.log('Bắt đầu xử lý yêu cầu gửi OTP');
-            
+
             const { email } = req.body;
             if (!email) {
                 console.log('Không tìm thấy email trong request');
@@ -42,36 +42,39 @@ class ControllerPayments {
                 console.log('Token không hợp lệ:', decoded);
                 return res.status(400).json({ message: 'Invalid token' });
             }
-            
+
             console.log('Đang kiểm tra giỏ hàng cho email:', decoded.email);
             const cart = await ModelCart.findOne({ user: decoded.email });
-            
+
             if (!cart) {
                 console.log('Không tìm thấy giỏ hàng cho người dùng:', decoded.email);
                 return res.status(404).json({ message: 'Giỏ hàng trống' });
             }
-            
+
             if (cart.products.length === 0) {
                 console.log('Giỏ hàng không có sản phẩm');
                 return res.status(404).json({ message: 'Giỏ hàng trống' });
             }
-            
+
             console.log('Kiểm tra thông tin giỏ hàng:', {
                 hasAddress: !!cart.address,
                 hasName: !!cart.name,
-                hasPhone: !!cart.phone
+                hasPhone: !!cart.phone,
             });
-            
+
             if (!cart.address || !cart.name || !cart.phone) {
                 console.log('Thiếu thông tin thanh toán');
-                return res.status(403).json({ message: 'Bạn đang thiếu thông tin thanh toán. Vui lòng nhập đầy đủ họ tên, số điện thoại và địa chỉ.' });
+                return res.status(403).json({
+                    message:
+                        'Bạn đang thiếu thông tin thanh toán. Vui lòng nhập đầy đủ họ tên, số điện thoại và địa chỉ.',
+                });
             }
 
             // Tạo mã OTP và gửi qua email
             console.log('Tạo mã OTP cho email:', email);
             const otp = generateOTP(email);
             console.log('Đang gửi email OTP...');
-            
+
             try {
                 const emailSent = await sendOTPMail(email, otp);
                 if (emailSent) {
@@ -94,9 +97,9 @@ class ControllerPayments {
     // Xác thực OTP và thực hiện thanh toán
     async verifyPaymentOTP(req, res) {
         try {
-            const { otp } = req.body;
+            const { otp, email } = req.body;
             const token = req.cookies.Token;
-            
+
             if (!token) {
                 return res.status(401).json({ message: 'Unauthorized' });
             }
@@ -106,9 +109,14 @@ class ControllerPayments {
                 return res.status(400).json({ message: 'Invalid token' });
             }
 
+            // Sử dụng email từ request body thay vì từ token để đảm bảo tính nhất quán
+            const emailToVerify = email || decoded.email;
+            console.log(`Xác thực OTP cho email: ${emailToVerify}, OTP: ${otp}`);
+
             // Xác thực OTP
-            const isValid = verifyOTP(decoded.email, otp);
+            const isValid = verifyOTP(emailToVerify, otp);
             if (!isValid) {
+                console.log(`OTP không hợp lệ cho email: ${emailToVerify}`);
                 return res.status(400).json({ message: 'Mã OTP không hợp lệ hoặc đã hết hạn' });
             }
 
@@ -140,10 +148,10 @@ class ControllerPayments {
 
             // Gửi email xác nhận đơn hàng
             await sendOrderConfirmationMail(decoded.email);
-            
+
             await newPayment.save();
             await ModelCart.deleteOne({ user: decoded.email });
-            
+
             res.status(200).json({ message: 'Đặt hàng thành công! Vui lòng kiểm tra email của bạn.' });
         } catch (error) {
             console.error(error);
@@ -226,18 +234,18 @@ class ControllerPayments {
             console.log('Bắt đầu xử lý yêu cầu xác nhận đơn hàng');
             const { valueOption, id } = req.body;
             console.log('Thông tin request:', { valueOption, id });
-            
+
             const order = await ModelPayment.findById(id);
             if (!order) {
                 console.log('Không tìm thấy đơn hàng với id:', id);
                 return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
             }
-            
-            console.log('Tìm thấy đơn hàng:', { 
-                id: order._id, 
-                user: order.user, 
+
+            console.log('Tìm thấy đơn hàng:', {
+                id: order._id,
+                user: order.user,
                 tinhtrang: order.tinhtrang,
-                trangthai: order.trangthai 
+                trangthai: order.trangthai,
             });
 
             try {
@@ -265,14 +273,16 @@ class ControllerPayments {
                     await sendOrderConfirmationMail(order.user, true); // true = isShipping
                     console.log('Đã gửi mail thông báo đang vận chuyển thành công');
 
-                    return res.status(200).json({ message: 'Đã cập nhật trạng thái đang vận chuyển và gửi email thông báo!' });
+                    return res
+                        .status(200)
+                        .json({ message: 'Đã cập nhật trạng thái đang vận chuyển và gửi email thông báo!' });
                 }
             } catch (emailError) {
                 console.error('Lỗi khi gửi email:', emailError);
                 // Vẫn trả về thành công vì đã cập nhật được trạng thái đơn hàng
-                return res.status(200).json({ 
+                return res.status(200).json({
                     message: 'Đã cập nhật trạng thái đơn hàng nhưng không gửi được email thông báo',
-                    error: emailError.message
+                    error: emailError.message,
                 });
             }
         } catch (error) {
@@ -306,7 +316,7 @@ class ControllerPayments {
             const partnerCode = process.env.MOMO_PARTNER_CODE;
             const accessKey = process.env.MOMO_ACCESS_KEY;
             const secretKey = process.env.MOMO_SECRET_KEY;
-            
+
             if (!partnerCode || !accessKey || !secretKey) {
                 console.error('Thiếu thông tin cấu hình Momo:', { partnerCode, accessKey, secretKey });
                 return res.status(500).json({ message: 'Chưa cấu hình đầy đủ thông tin thanh toán Momo' });
@@ -336,21 +346,21 @@ class ControllerPayments {
             // Tạo thông tin thanh toán Momo
             const requestId = partnerCode + new Date().getTime();
             const orderId = requestId;
-            const orderInfo = "Thanh toán đơn hàng TVVN Store";
+            const orderInfo = 'Thanh toán đơn hàng TVVN Store';
             const redirectUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/paymentsuccess`;
             const ipnUrl = `${process.env.SERVER_URL || 'http://localhost:5000'}/api/momo-ipn`;
             const amount = sumprice.toString();
-            const requestType = "captureWallet";
-            const extraData = Buffer.from(JSON.stringify({
-                orderId: newPayment._id.toString()
-            })).toString('base64');
+            const requestType = 'captureWallet';
+            const extraData = Buffer.from(
+                JSON.stringify({
+                    orderId: newPayment._id.toString(),
+                }),
+            ).toString('base64');
 
             const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
 
             const crypto = require('crypto');
-            const signature = crypto.createHmac('sha256', secretKey)
-                .update(rawSignature)
-                .digest('hex');
+            const signature = crypto.createHmac('sha256', secretKey).update(rawSignature).digest('hex');
 
             const requestBody = {
                 partnerCode: partnerCode,
@@ -364,34 +374,31 @@ class ControllerPayments {
                 extraData: extraData,
                 requestType: requestType,
                 signature: signature,
-                lang: 'vi'
+                lang: 'vi',
             };
 
             console.log('Gửi yêu cầu thanh toán Momo:', {
                 ...requestBody,
-                signature: '***hidden***'
+                signature: '***hidden***',
             });
 
             // Gọi API Momo test environment
-            const response = await axios.post(
-                'https://test-payment.momo.vn/v2/gateway/api/create',
-                requestBody
-            );
+            const response = await axios.post('https://test-payment.momo.vn/v2/gateway/api/create', requestBody);
 
             console.log('Kết quả từ Momo:', response.data);
 
             if (response.data.resultCode === 0) {
                 // Lưu đơn hàng tạm thời
                 await newPayment.save();
-                
+
                 // Trả về URL thanh toán Momo
-                return res.json({ 
+                return res.json({
                     payUrl: response.data.payUrl,
-                    message: 'Đang chuyển hướng đến trang thanh toán Momo'
+                    message: 'Đang chuyển hướng đến trang thanh toán Momo',
                 });
             } else {
-                return res.status(400).json({ 
-                    message: 'Không thể tạo giao dịch Momo: ' + response.data.message 
+                return res.status(400).json({
+                    message: 'Không thể tạo giao dịch Momo: ' + response.data.message,
                 });
             }
         } catch (error) {
@@ -416,17 +423,15 @@ class ControllerPayments {
                 payType,
                 responseTime,
                 extraData,
-                signature
+                signature,
             } = req.body;
 
             // Xác thực chữ ký từ Momo
             const secretKey = process.env.MOMO_SECRET_KEY;
             const rawSignature = `accessKey=${process.env.MOMO_ACCESS_KEY}&amount=${amount}&extraData=${extraData}&message=${message}&orderId=${orderId}&orderInfo=${orderInfo}&orderType=${orderType}&partnerCode=${partnerCode}&payType=${payType}&requestId=${requestId}&responseTime=${responseTime}&resultCode=${resultCode}&transId=${transId}`;
-            
+
             const crypto = require('crypto');
-            const checkSignature = crypto.createHmac('sha256', secretKey)
-                .update(rawSignature)
-                .digest('hex');
+            const checkSignature = crypto.createHmac('sha256', secretKey).update(rawSignature).digest('hex');
 
             if (checkSignature !== signature) {
                 return res.status(400).json({ message: 'Invalid signature' });
@@ -464,7 +469,7 @@ class ControllerPayments {
         try {
             const orderId = req.params.id;
             const order = await ModelPayment.findById(orderId);
-            
+
             if (!order) {
                 return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
             }
